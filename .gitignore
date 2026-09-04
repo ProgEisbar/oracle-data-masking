@@ -1,0 +1,17 @@
+# Local Codex/workspace metadata
+.agents/
+.codex/
+
+# Office temporary files
+~$*
+
+# One-off migration/import scripts, not part of the enmascarador product
+Querys auxiliares/Migracion_XXGP700_UAT_MT_NEW/
+
+# Logs and generated outputs
+*.log
+*.lst
+*.dmp
+*.tmp
+*.docx
+*.par

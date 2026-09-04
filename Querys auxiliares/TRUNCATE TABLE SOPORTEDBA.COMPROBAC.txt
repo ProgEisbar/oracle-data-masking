@@ -1,0 +1,48 @@
+TRUNCATE TABLE SOPORTEDBA.COMPROBACION;
+
+INSERT INTO SOPORTEDBA.COMPROBACION (
+  NRO_TARJETA_ENCRIPTADA,          -- original (hex)
+  NRO_TARJETA_DESENCRIPTADA,       -- original desencriptado
+  NRO_TARJETA_ENCRIPTADA_NUEVA,    -- nuevo (hex)
+  NRO_TARJETA_DESENCRIPTADA_NUEVA  -- nuevo desencriptado
+)
+SELECT
+  t.NRO_TARJETA_ENCRIPTADA_ORIGINAL,
+  t.NRO_TARJETA_DESENCRIPTADA,
+  t.NRO_TARJETA_ENCRIPTADA_NUEVA,
+  REGEXP_REPLACE(
+    REPLACE(
+      TRIM(SOPORTEDBA.PAN_CRYPTO.DECRYPT_HEX(t.NRO_TARJETA_ENCRIPTADA_NUEVA)),
+      CHR(0),
+      ''
+    ),
+    '[^0-9]',
+    ''
+  ) AS pan_nuevo
+FROM SOPORTEDBA.TABLA_MAESTRA_TARJETAS t
+WHERE ROWNUM <= 100;   -- o el límite que quieras para probar
+
+COMMIT;
+
+WITH fuente_raw AS (
+  SELECT UPPER(TRIM(a.nro_tarjeta)) enc_original FROM ENTIDAD703.AUTORIZACION a              WHERE a.nro_tarjeta      IS NOT NULL
+  UNION ALL
+  SELECT UPPER(TRIM(al.in_nro_tarjeta))          FROM ENTIDAD703.AUTORIZACION_ADQUIRENTE_LOG al WHERE al.in_nro_tarjeta IS NOT NULL
+  UNION ALL
+  SELECT UPPER(TRIM(ac.nro_tarjeta))             FROM ENTIDAD703.AUTORIZACION_CONSULTA ac     WHERE ac.nro_tarjeta    IS NOT NULL
+  UNION ALL
+  SELECT UPPER(TRIM(c.nro_tarjeta))              FROM ENTIDAD703.CONSUMOS c                   WHERE c.nro_tarjeta     IS NOT NULL
+  UNION ALL
+  SELECT UPPER(TRIM(i.nro_tarjeta))              FROM ENTIDAD703.IPM i                        WHERE i.nro_tarjeta     IS NOT NULL
+  UNION ALL
+  SELECT UPPER(TRIM(rl.in_nro_tarjeta))          FROM ENTIDAD703.RESPUESTA_MC_LOG rl          WHERE rl.in_nro_tarjeta IS NOT NULL
+  UNION ALL
+  SELECT UPPER(TRIM(t4.nro_tarjeta))             FROM ENTIDAD703.TQR4_ADQUIRENCIA t4         WHERE t4.nro_tarjeta    IS NOT NULL
+)
+SELECT COUNT(DISTINCT fr.enc_original) AS faltantes
+FROM fuente_raw fr
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM SOPORTEDBA.TABLA_MAESTRA_TARJETAS t
+  WHERE t.NRO_TARJETA_ENCRIPTADA_ORIGINAL = fr.enc_original
+);
